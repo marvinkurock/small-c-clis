@@ -11,15 +11,14 @@ typedef struct {
   int width;
   int height;
   bool valid;
+  bool list;
 } Arguments;
 
 Arguments parse_args(int argc, char **argv) {
-  Arguments result = {
-    .refreshRate = 0
-  };
-
+  Arguments result;
   result.valid = true;
   result.help = false;
+  result.list = false;
 
   result.name = argv[0];
   if(argc > 1){
@@ -31,6 +30,10 @@ Arguments parse_args(int argc, char **argv) {
       if(strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0){
         result.help = true;
         return result;
+      }
+
+      if(strcmp(arg, "-l") == 0 || strcmp(arg, "--list") == 0){
+        result.list = true;
       }
 
       if(strcmp(arg, "-s") == 0 || strcmp(arg, "--resolution") == 0){
@@ -79,8 +82,7 @@ Arguments parse_args(int argc, char **argv) {
 const char *helpMsg = 
 "Marvins resolution changer:\n"
 "===========================\n"
-"Usage: resw.exe <OPTIONS>\n"
-"Example: .\\resw.exe -s 1920x1080 -r 120\n\n"
+"Usage:\n"
 "--help:            Show help message\n"
 "   -h\n"
 "\n"
@@ -89,6 +91,9 @@ const char *helpMsg =
 "\n"
 "--refresh-rate:    Change the refresh rate.\n"
 "    -r             format: xx eg. 120\n"
+"\n"
+"--list:            List valid resolutions\n"
+"    -l             \n"
 "";
 
 int main(int argc, char **argv){
@@ -118,18 +123,25 @@ int main(int argc, char **argv){
 
   printf("current resolution: %dx%d @ %dHz\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
 
+  if(data.list){
+    DEVMODE edm;
+    ZeroMemory(&edm, sizeof(edm));
+    edm.dmSize = sizeof(edm);
+    for(int si = 0; EnumDisplaySettings(NULL, si, &edm) != 0; si++){
+      printf("%d: %dx%d @ %d\n", si+1, edm.dmPelsWidth, edm.dmPelsHeight, edm.dmDisplayFrequency);
+    }
+    return 0;
+  }
+
   if(data.width > 0 && data.height > 0){
-    printf("setting new values\n");
     dm.dmPelsWidth = data.width;
     dm.dmPelsHeight = data.height;
     dm.dmFields = dm.dmFields | DM_PELSWIDTH | DM_PELSHEIGHT;
   }
   if(data.refreshRate > 0){
-    printf("settings refresh rate: %d\n", data.refreshRate);
     dm.dmDisplayFrequency = data.refreshRate;
     dm.dmFields = dm.dmFields | DM_DISPLAYFREQUENCY;
   }
-  
   printf("Changing to: %dx%d @ %d\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
   long result = ChangeDisplaySettings(&dm, 0);
   if(result == DISP_CHANGE_SUCCESSFUL){
