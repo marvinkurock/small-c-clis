@@ -138,13 +138,14 @@ int main(int argc, char **argv){
     return 0;
   }
 
-  printf("Changing to: %dx%d @ %d\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
 
   Resolution item = {
     .height = data.height,
     .width = data.width,
     .refreshRate = data.refreshRate
   };
+
+  printf("Changing to: %dx%d @ %d\n", item.width, item.height, item.refreshRate);
 
   int result = set_resolution(item);
   if(result == 0){

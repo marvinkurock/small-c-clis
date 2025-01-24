@@ -62,6 +62,11 @@ int set_resolution(Resolution item){
   DEVMODE dm;
   ZeroMemory(&dm, sizeof(dm));
 
+  if(!EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dm)){
+    printf("Failed to read current settings");
+    return 1;
+  }
+
   if(item.width > 0){
     dm.dmPelsWidth = item.width;
     dm.dmPelsHeight = item.height;
