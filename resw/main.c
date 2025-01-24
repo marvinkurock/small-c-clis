@@ -2,7 +2,7 @@
 #include "stdbool.h"
 #include "Windows.h"
 
-bool DEBUG = false;
+#include "src/resolution.c"
 
 typedef struct {
   char *name;
@@ -24,9 +24,9 @@ Arguments parse_args(int argc, char **argv) {
   if(argc > 1){
     for(int i = 1; i < argc; i++){
       char *arg = argv[i];
-      if(DEBUG){
+      #ifdef DEBUG
         printf("%d: %s\n", i, arg);
-      }
+      #endif
       if(strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0){
         result.help = true;
         return result;
@@ -57,9 +57,9 @@ Arguments parse_args(int argc, char **argv) {
         if(i+1 < argc){
           // parse 
           int val = atoi(argv[i+1]);
-          if(DEBUG){
+          #ifdef DEBUG
             printf("parsing refresh\nval: %d\n", val);
-          }
+          #endif
           if(val == 0){
             printf("Failed to parse refresh-rate. %d\n", val);
             result.valid = false;
@@ -103,14 +103,16 @@ int main(int argc, char **argv){
     return 1;
   }
   if(data.help){
+    #ifdef DEBUG
     printf("help: %d\nvalid: %d\n", data.help, data.valid);
+    #endif
     printf("%s", helpMsg);
     return 0;
   }
 
-  if(DEBUG){
+  #ifdef DEBUG
     printf("Resolution: %dx%d\nRefresh: %d\n", data.width, data.height, data.refreshRate);
-  }
+  #endif
 
   DEVMODE dm;
   ZeroMemory(&dm, sizeof(dm));
@@ -124,27 +126,28 @@ int main(int argc, char **argv){
   printf("current resolution: %dx%d @ %dHz\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
 
   if(data.list){
-    DEVMODE edm;
-    ZeroMemory(&edm, sizeof(edm));
-    edm.dmSize = sizeof(edm);
-    for(int si = 0; EnumDisplaySettings(NULL, si, &edm) != 0; si++){
-      printf("%d: %dx%d @ %d\n", si+1, edm.dmPelsWidth, edm.dmPelsHeight, edm.dmDisplayFrequency);
+    ResolutionArray resis;
+    int result = get_resolutions(&resis);
+    if(result == 0){
+      for(int i = 0; i < resis.length; i++){
+        Resolution *item = get_resolution_item(&resis, i);
+        printf("%d:\t%dx%d @ %dHz\n" , i+1, item->width, item->height, item->refreshRate);
+      }
     }
+    free(resis.items);
     return 0;
   }
 
-  if(data.width > 0 && data.height > 0){
-    dm.dmPelsWidth = data.width;
-    dm.dmPelsHeight = data.height;
-    dm.dmFields = dm.dmFields | DM_PELSWIDTH | DM_PELSHEIGHT;
-  }
-  if(data.refreshRate > 0){
-    dm.dmDisplayFrequency = data.refreshRate;
-    dm.dmFields = dm.dmFields | DM_DISPLAYFREQUENCY;
-  }
   printf("Changing to: %dx%d @ %d\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
-  long result = ChangeDisplaySettings(&dm, 0);
-  if(result == DISP_CHANGE_SUCCESSFUL){
+
+  Resolution item = {
+    .height = data.height,
+    .width = data.width,
+    .refreshRate = data.refreshRate
+  };
+
+  int result = set_resolution(item);
+  if(result == 0){
     printf("display settings changed\n");
   } else {
     printf("Changing settings failed. Error code: %d\n", result);
